@@ -12,13 +12,17 @@ app.use('/api', appRouter);
 
 // Errors
 app.use((err, req, res, next) => {
-
-  console.log('err:::', err);
-
-  if(err instanceof mongoose.Error.ValidationError) {
-    return res.status(400).json({ errors: err.errors });
+  switch (err.message) {
+    case 'CreationDataIncomplete':
+      res.status(400).json({ error: 'incomplete-data'})
+    break;
+    case 'jwt malformed':
+      res.status(400).json({ error: 'invalid-token'})
+    break;
+    case 'PostNotFound':
+        return res.status(404).json({ error: 'post-not-found' });
+    break;
   }
-  res.status(500).json({ mderror: 'internal-server-error' });
 });
 
 connect()

@@ -1,12 +1,22 @@
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import post from "../models/post.js";
+import user from "../models/user.js";
 
 export const createPost = (req, res, next) => {
   const { title, text, author } = req.body;
-  const newPost = new post({ title, text, author });
-  newPost.save()
-    .then((result) => {
-      return res.status(201).send({ result });
-    }).catch(err => next(err));
+  if (title === undefined || text === undefined || author === undefined) {
+    next(new Error('CreationDataIncomplete'));
+  }
+  else {
+    const newPost = new post({ title, text, author });
+    newPost.save()
+      .then((result) => {
+        return res.status(201).send({ result });
+      }).catch(err => {
+        next(err)
+      });
+  }
 } 
 
 export const listPosts = (req, res, next) => {
@@ -21,7 +31,7 @@ export const postDetail = (req, res, next) => {
   post.findById(id)
     .then((result) => {
       if (!result) {
-        return res.status(404).json({ error: 'post-not-found' });
+        next(new Error('PostNotFound'));
       }
       else {
         return res.json({ result });
@@ -60,3 +70,52 @@ export const deletePost = (req, res, next) => {
     }).catch(next);
 }
 
+export const createUser = (req, res, next) => {
+  const { name, email, password, bio } = req.body;
+  const newUser = new user({ name, email, password, bio });
+  newUser.save().then((user) => {
+    if (!user) {
+      return res.status(401).json({ error: 'user-not-found' })
+    }
+    else {
+      return res.status(201).json({ user });
+    }
+  }).catch(err => {
+
+    console.log('????');
+
+    // next();
+
+  });
+}
+
+export const login = (req, res, next) => {
+  const { email, password } = req.body;
+  if ( !email || !password ) {
+    res.json({ error: 'bad-request' });
+  }
+  else {
+    user.findOne({ email })
+     .then((user) => {
+      if (!user) {
+        res.status(404).json({ error: 'user-not-found'});
+      }
+      else {
+        bcrypt.compare(password, user.password, (err, result) => {
+          if (!result) {
+            res.status(401).json({ error: 'unauthorized' })
+          }
+          else {
+            const token = jwt.sign({ sub: user.id }, process.env.API_SECRET);
+            res.json({ token });
+          }
+        })
+      }
+     }).catch(err => {
+
+      console.log('no user ??');
+
+      // next(err);
+     });
+  }
+}

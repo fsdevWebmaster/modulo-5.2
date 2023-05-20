@@ -17,13 +17,3 @@ const PostSchema = new mongoose.Schema({
 });
 
 export default mongoose.model('Post', PostSchema);
-
-/*
-, {
-  toJSON: {
-    transform: function(doc, ret) {
-      ret.id = ret._id
-    }
-  }
-}
-*/
