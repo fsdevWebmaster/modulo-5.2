@@ -19,7 +19,8 @@ const UserSchema = new mongoose.Schema({
   active: {
     type: Boolean,
     default: false
-  }
+  },
+  validKey: String
 }, {
   timestamps: true,
   toJSON: {

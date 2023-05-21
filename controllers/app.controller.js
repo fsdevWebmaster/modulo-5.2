@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { v4 as uuidV4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import post from "../models/post.js";
 import user from "../models/user.js";
@@ -73,6 +74,8 @@ export const deletePost = (req, res, next) => {
 export const createUser = (req, res, next) => {
   const { name, email, password, bio } = req.body;
   const newUser = new user({ name, email, password, bio });
+  const validKey = uuidV4();
+  newUser.validKey = validKey;
   newUser.save().then((user) => {
     if (!user) {
       return res.status(401).json({ error: 'user-not-found' })
@@ -80,13 +83,30 @@ export const createUser = (req, res, next) => {
     else {
       return res.status(201).json({ user });
     }
-  }).catch(err => {
+  }).catch(next);
+}
 
-    console.log('????');
+export const activateUser = (req, res, next) => {
+  const { key } = req.params;
+  user.findOne({ validKey: key })
+    .then((found) => {
+      if (!found) {
+        next(new Error('InvalidKey'));
+      }
+      else {
+        user.findOneAndUpdate({ validKey: key }, { active: true }, { new: true })
+          .then((result) => {
 
-    // next();
+            console.log('result::', result);
 
-  });
+            return res.status(301).json({ to: 'http://google.com' });
+          }).catch((err) => {
+            next(new Error('UpdateActive'))
+          });
+      }
+    }).catch((err) => {
+      next(new Error('InvalidKey'));
+    });
 }
 
 export const login = (req, res, next) => {
@@ -98,24 +118,26 @@ export const login = (req, res, next) => {
     user.findOne({ email })
      .then((user) => {
       if (!user) {
-        res.status(404).json({ error: 'user-not-found'});
+        return res.status(404).json({ error: 'user-not-found'});
       }
       else {
-        bcrypt.compare(password, user.password, (err, result) => {
-          if (!result) {
-            res.status(401).json({ error: 'unauthorized' })
-          }
-          else {
-            const token = jwt.sign({ sub: user.id }, process.env.API_SECRET);
-            res.json({ token });
-          }
-        })
+        if (!user.active) {
+          next(new Error('NoActivatedUser'));
+        }
+        else {
+          bcrypt.compare(password, user.password, (err, result) => {
+            if (!result) {
+              return res.status(401).json({ error: 'unauthorized' })
+            }
+            else {
+              const token = jwt.sign({ sub: user.id }, process.env.API_SECRET);
+              return res.json({ token });
+            }
+          })
+        }
       }
      }).catch(err => {
-
-      console.log('no user ??');
-
-      // next(err);
+      next(err);
      });
   }
 }
